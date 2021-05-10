@@ -65,7 +65,7 @@ while not right_wall_detected and not front_wall_detected:
         if rigth_distance_sensor.distance*100 <= treshold:
             right_wall_detected = True
 
-
+#esra <3 iremsu
 
 
 # START CRUISING
