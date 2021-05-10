@@ -25,7 +25,10 @@ in4 = 27
 #Simpler code for controlling the robot by using the Robot class
 robot = Robot(left=(in1, in2), rigth=(in3, in4))
 
-
+robot.forward()
+robot.rigth()
+time.sleep(1)
+robot.left()
 #READING inputs
 #input_value = GPIO.input(pin_number)
 
@@ -64,8 +67,6 @@ while not right_wall_detected and not front_wall_detected:
     else:
         if rigth_distance_sensor.distance*100 <= treshold:
             right_wall_detected = True
-
-#esra <3 iremsu
 
 
 # START CRUISING
