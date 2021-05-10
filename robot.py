@@ -4,8 +4,11 @@
 #Get the LIBRARIES
 
 from gpiozero import Robot, DistanceSensor, MCP3008
-import time
 import RPi.GPIO as GPIO
+from gpiozero.pins.pigpio import PiGPIOFactory
+from time import sleep
+
+factory = PiGPIOFactory(host='192.168.1.3') #change IP address if incorrect
 
 GPIO.setmode(GPIO.BOARD)
 
