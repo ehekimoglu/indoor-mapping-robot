@@ -8,6 +8,7 @@ import time
 import RPi.GPIO as GPIO
 import turtle
 import smbus
+import math
 #import pigpio
 #from gpiozero.pins.pigpio import PiGPIOFactory
 
@@ -122,7 +123,7 @@ scale = 20
 counter = 0
 
 def completion(orientation, coordinate, counter):
-    dist_to_start = sqrt(pow(coordinate[0],2)*pow(coordinate[1],2))
+    dist_to_start = math.sqrt(pow(coordinate[0],2)+pow(coordinate[1],2))
     if orientation == 0:
         coordinate[1] += distance
     elif orientation == 1:
