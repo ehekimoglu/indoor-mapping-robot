@@ -94,6 +94,7 @@ robot = Robot(left=(in1, in2), right=(in3, in4))
 
 turn_angle = 90
 scale = 20
+motor_turn = 1
 #READING inputs
 #input_value = GPIO.input(pin_number)
 
@@ -121,9 +122,9 @@ scale = 20
 
 
 counter = 0
+coordinate = [0, 0]
 
 def completion(orientation, coordinate, counter):
-    dist_to_start = math.sqrt(pow(coordinate[0],2)+pow(coordinate[1],2))
     if orientation == 0:
         coordinate[1] += distance
     elif orientation == 1:
@@ -132,7 +133,7 @@ def completion(orientation, coordinate, counter):
         coordinate[1] -= distance
     elif orientation == 3:
         coordinate[0] += distance
-    if  10 > dist_to_start and time.time > 5:
+    if  5 > abs(coordinate[0]) and 5 > abs(coordinate[1]) and time.time > 30:
         counter += 1
         sc = turtle.getscreen()
         sc.getcanvas().postscript(file="duck.eps")
@@ -142,7 +143,7 @@ def completion(orientation, coordinate, counter):
 
 
 #FIND A WALL
-treshold = 10 #in cm
+treshold = 50 #in cm
 
 front_wall_detected = False
 right_wall_detected = False
@@ -159,18 +160,13 @@ def findWalls(f_trig, f_echo, r_trig, r_echo):
         front_wall_detected = False
 
     if not right_wall_detected and front_wall_detected:
-        robot.left(turn_angle) #make a 90 degrees turn BURAYI DÜZELT,
-        time.sleep(5)
+        robot.left(motor_turn) #make a 90 degrees turn BURAYI DÜZELT,
         robot.stop()
         right_wall_detected = True
     
     if not right_wall_detected and not front_wall_detected:
         robot.forward()
         time.sleep(1)
-        if get_dist(r_trig, r_echo)<= treshold:
-            right_wall_detected = True
-        elif get_dist(f_trig, f_echo)<= treshold:
-            front_wall_detected = True
     return right_wall_detected
 # while not right_wall_detected and not front_wall_detected:
 #     robot.forward()
@@ -201,7 +197,6 @@ left = 1 #for orientation purposes
 right = -1
 distance = 0
 v_init = 1
-coordinate = [0, 0]
 end_time = time.time()
        
 while counter == 0:
@@ -218,6 +213,7 @@ while counter == 0:
         end_time = time.time()
         elapsed_time = end_time - start_time
         distance += elapsed_time*(get_accel(address)*(elapsed_time)/2 + v_init)
+        v_init += elapsed_time*get_accel(address)
         
         if get_dist(f_trig, f_echo) <= treshold:
                 front_wall_detected = True
@@ -229,8 +225,7 @@ while counter == 0:
             #move to a close proximity and
             if get_dist(f_trig, f_echo) <= treshold:
                 robot.stop()
-                robot.left(turn_angle)
-                time.sleep(0.5)
+                robot.left(motor_turn)
                 robot.stop()
                 wall_length.append(distance)
                 t.forward(distance*scale)
@@ -246,8 +241,7 @@ while counter == 0:
                 #continue cruising
         if abs(change) > treshold: #sudden increase in the right distance
             robot.stop()
-            robot.right(turn_angle)
-            time.sleep(0.5)
+            robot.right(motor_turn)
             robot.stop()
             wall_length.append(distance)
             t.forward(distance*scale)
@@ -286,3 +280,4 @@ while counter == 0:
             orientation += right
             t.right(turn_angle)
             distance = 0
+
