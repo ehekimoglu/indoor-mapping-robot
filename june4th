@@ -1,0 +1,227 @@
+from gpiozero import Robot
+import time
+import RPi.GPIO as GPIO
+import turtle
+import smbus
+import math
+
+#pins are in BCM
+GPIO.setmode(GPIO.BCM)
+
+#DISTANCE SENSOR PINS
+f_trig = 5
+f_echo = 21
+r_trig = 23
+r_echo = 24
+
+# ACCELEROMETER
+address = 0x53
+bus = smbus.SMBus(1)
+bus.write_byte_data(address, 0x2C, 0x0A)
+bus.write_byte_data(address, 0x2D, 0x08)
+bus.write_byte_data(address, 0x31, 0x08)
+
+
+# GET DISTANCE DATA
+def get_dist(myTrig, myEcho):  # (23,24) ve diğeri
+
+    TRIG = myTrig
+    ECHO = myEcho
+
+    GPIO.setup(TRIG, GPIO.OUT)
+    GPIO.setup(ECHO, GPIO.IN)
+
+    GPIO.output(TRIG, True)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, False)
+
+    while GPIO.input(ECHO) == 0:
+        pulse_start = time.time()
+
+    while GPIO.input(ECHO) == 1:
+        pulse_end = time.time()
+
+    pulse_duration = pulse_end - pulse_start
+
+    distance = pulse_duration * 17150
+
+    distance = round(distance, 2)
+
+    if TRIG == f_trig:
+        print("Front distance:", distance, "cm")
+    elif TRIG == r_trig:
+        print("Right distance:", distance, "cm")
+
+    return distance
+
+#GET ACCELERATION
+def get_accel(address):
+    data0 = bus.read_byte_data(address, 0x34)
+    data1 = bus.read_byte_data(address, 0x35)
+
+    # Convert the data to 10-bits
+    yAccl = ((data1 & 0x03) * 256) + data0
+    if yAccl > 511:
+        yAccl -= 1024
+    print("Acceleration in Y-Axis : ", yAccl)
+    return yAccl
+
+#MOTOR DRIVER PINS
+in1 = 16
+in2 = 25
+in3 = 22
+in4 = 27
+
+robot = Robot(left=(in2, in1), right=(in4, in3))
+
+turn_left = 0.5
+left_time = 0.3
+turn_right = 0.7
+right_time = 0.5
+
+turn_angle = 90
+scale = 20
+
+counter = 0
+coordinate = [0, 0]
+
+def completion(orientation, coordinate, counter):
+    if orientation == 0:
+        coordinate[1] += distance
+    elif orientation == 1:
+        coordinate[0] -= distance
+    elif orientation == 2:
+        coordinate[1] -= distance
+    elif orientation == 3:
+        coordinate[0] += distance
+    if 5 > abs(coordinate[0]) and 5 > abs(coordinate[1]) and time.time() > 30:
+        counter += 1
+        sc = turtle.getscreen()
+        sc.getcanvas().postscript(file="duck.eps")
+        turtle.done()
+    return counter
+
+
+# FIND A WALL
+f_treshold = 20
+r_treshold = 70  # in cm
+
+front_wall_detected = False
+right_wall_detected = False
+
+def findWalls(f_trig, f_echo, r_trig, r_echo):
+    front_wall_detected = True
+    right_wall_detected = True
+
+    if not get_dist(r_trig, r_echo) <= f_treshold:
+        right_wall_detected = False
+
+    if not get_dist(f_trig, f_echo) <= f_treshold:
+        front_wall_detected = False
+
+    if not right_wall_detected and front_wall_detected:
+        robot.left(turn_left)  # make a 90 degrees turn BURAYI DÜZELT,
+        print("Turning left")
+        time.sleep(left_time)
+        robot.stop()
+        right_wall_detected = True
+        print("Right wall found!")
+
+    if not right_wall_detected and not front_wall_detected:
+        robot.forward()
+        print("Looking for wall...")
+    return right_wall_detected
+
+orientation_list = []
+wall_length = []
+orientation = 0
+t = turtle.Turtle()
+
+left = 1
+right = -1
+distance = 0
+v_init = 1
+end_time = time.time()
+
+while counter == 0:
+    right_wall_detected = findWalls(f_trig, f_echo, r_trig, r_echo)
+    previousRight = get_dist(r_trig, r_echo)
+    while right_wall_detected:
+        robot.forward(1)
+        print("cruising...")
+        start_time = end_time
+        RightDistance = get_dist(r_trig, r_echo)
+        if RightDistance > r_treshold:
+            right_wall_detected = False
+            print("Right wall lost...")
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        distance += elapsed_time * (get_accel(address) * (elapsed_time) / 2 + v_init)
+        v_init += elapsed_time * get_accel(address)
+
+        if get_dist(f_trig, f_echo) <= f_treshold:
+            front_wall_detected = True
+            print("Front wall detected")
+            robot.stop()
+            robot.left(turn_left)
+            print("Turning left")
+            time.sleep(left_time)
+            robot.stop()
+            wall_length.append(distance)
+            t.forward(distance * scale)
+            orientation = orientation % 4
+            orientation_list.append(orientation)
+            t.left(turn_angle)
+            completion(orientation, coordinate, counter)  # checks if coordinates are 0,0 or not
+            orientation += left
+            distance = 0
+            right_wall_detected = True
+            print("right wall detected")
+
+        change = RightDistance - previousRight
+        previousRight = RightDistance
+        # continue cruising
+        if abs(change) > r_treshold:  # sudden increase in the right distance
+            robot.stop()
+            robot.right(turn_right)
+            time.sleep(right_time)
+            print("Turning right")
+            robot.stop()
+            wall_length.append(distance)
+            t.forward(distance * scale)
+            orientation = orientation % 4
+            orientation_list.append(orientation)
+            t.right(turn_angle)
+            completion(orientation, coordinate, counter)
+            orientation += right
+            distance = 0
+            if get_dist(r_trig, r_echo) > r_treshold:
+                right_wall_detected = False
+
+            # If there is a small bump on the route
+        elif r_treshold > change > 1:
+            new_wall = change
+            orientation += right
+            orientation = orientation % 4
+            orientation_list.append(orientation)
+            t.right(turn_angle)
+            completion(orientation, coordinate, counter)
+            wall_length.append(new_wall * scale)
+            t.forward(distance * scale)
+            orientation += left
+            t.left(turn_angle)
+            distance = 0
+
+        elif -(r_treshold) < change < -1:
+            new_wall = -change
+            orientation += left
+            orientation = orientation % 4
+            orientation_list.append(orientation)
+            t.left(turn_angle)
+            completion(orientation, coordinate, counter)
+            wall_length.append(new_wall * scale)
+            t.forward(distance * scale)
+            orientation += right
+            t.right(turn_angle)
+            distance = 0
+
