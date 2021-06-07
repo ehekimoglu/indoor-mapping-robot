@@ -98,10 +98,10 @@ def get_accel(address):
     print("Acceleration in Y-Axis : ", -yAccl)
     return -yAccl
 
-def completion(orientation, coordinate, counter,wall_length, turn_list, orientation_list, distance):
+def completion(orientation, coordinate, counter, wall_length, turn_list, orientation_list, distance, turn_angle):
     coordinate = [0, 0]
-    for i in len(wall_length):
-        if orientation_list[i] = 0:
+    for i in len(wall_length): #already appended walls
+        if orientation_list[i] = 0: 
             coordinate[1] += wall_length[i]
         elif orientation_list[i] = 1:
             coordinate[0] -= wall_length[i]
@@ -109,8 +109,9 @@ def completion(orientation, coordinate, counter,wall_length, turn_list, orientat
             coordinate[1] -= wall_length[i]
         elif orientation_list[i] = 3:
             coordinate[0] += wall_length[i]
-        
-    if orientation = 0:
+    
+    #wall being currently traveled 
+    if orientation = 0: 
         coordinate[1] += distance
     elif orientation = 1:
         coordinate[0] -= distance
@@ -118,7 +119,8 @@ def completion(orientation, coordinate, counter,wall_length, turn_list, orientat
         coordinate[1] -= distance
     elif orientation = 3:
         coordinate[0] += distance
-    if 5 > abs(coordinate[0]) and 5 > abs(coordinate[1]) and time.time() > 30:
+        
+    if 5 > abs(coordinate[0]) and 5 > abs(coordinate[1]) and time.time() > 30: #is the room complete
         counter += 1
         robot.stop()
         t = turtle.Turtle()
@@ -158,11 +160,30 @@ def where_is_my_wall(r_trig, r_echo,f_trig,f_echo):
         robot.stop()
     return right_wall_detected
 
+def move_closer():
+    robot.right(0.5)
+    time.sleep(0.1)
+    robot.stop()
+    robot.left(0.3)
+    time.sleep(0.1)
+    robot.stop()
+    return
+
+def move_away():
+    robot.left(0.4)
+    time.sleep(0.1)
+    robot.stop()
+    robot.right(0.3)
+    time.sleep(0.1)
+    robot.stop()
+    return
+
+#main
 while counter == 0:
     right_wall_detected = findWalls(r_trig, r_echo, f_trig, f_echo)
     previousRight = get_dist(r_trig, r_echo)
     while right_wall_detected:
-        completion(orientation, coordinate, counter, wall_length, turn_list, orientation_list, distance) 
+        completion(orientation, coordinate, counter, wall_length, turn_list, orientation_list, distance, turn_angle) 
         time.sleep(0.1)
         RightDistance = get_dist(r_trig, r_echo)
         if RightDistance > r_treshold:
@@ -183,20 +204,9 @@ while counter == 0:
             if RightDistance <= r_treshold:
                 right_wall_detected = True
         if RightDistance <= 10: #robot shouldnt get too close to wall
-            robot.left(0.4)
-            time.sleep(0.1)
-            robot.stop()
-            robot.right(0.3)
-            time.sleep(0.1)
-            robot.stop()
+            move_away()
         elif 70 <= RightDistance: #robot shouldnt stray away from the wall
-            robot.right(0.5)
-            time.sleep(0.1)
-            robot.stop()
-            robot.left(0.3)
-            time.sleep(0.1)
-            robot.stop()
-        #
+            move_closer()
         robot.forward(1)
         print("cruising...")
         time.sleep(0.15)
@@ -215,6 +225,8 @@ while counter == 0:
             right_wall_detected = False
             while not right_wall_detected:
                 robot.left(0.9)
+                time.sleep(0.1)
+                robot.stop()
                 right_wall_detected = where_is_my_wall(r_trig, r_echo,f_trig,f_echo)
             wall_length.append(distance)
             orientation = orientation % 4
