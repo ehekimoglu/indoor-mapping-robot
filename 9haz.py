@@ -253,7 +253,7 @@ while counter == 0:
             orientation += right
             turn_list.append(right)
             distance = 0
-        if 240 < time.time() - next_time 
+        if 240 < time.time() - next_time: 
             completion(wall_length, turn_list, turn_angle)
         continue  
         
